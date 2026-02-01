@@ -1,0 +1,125 @@
+/* --- การตั้งค่าพื้นฐาน --- */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    background-color: #f4f6f9;
+    margin: 0;
+    padding: 20px;
+    color: #333;
+}
+
+h1 {
+    text-align: center;
+    color: #2c3e50;
+    margin-bottom: 20px;
+    font-size: 24px;
+}
+
+/* --- Layout หลัก (Flexbox แบ่งหน้าจอ) --- */
+.main-container {
+    display: flex;
+    /* เปิดโหมด Flexbox */
+    gap: 20px;
+    /* ช่องว่างระหว่างกล่องซ้ายขวา */
+    height: 80vh;
+    /* ความสูง 80% ของหน้าจอ */
+    max-width: 1400px;
+    margin: 0 auto;
+    /* จัดกึ่งกลางจอ */
+}
+
+/* --- ฝั่งซ้าย: แผนที่ --- */
+.map-section {
+    flex: 2.5;
+    /* ให้พื้นที่ 2.5 ส่วน (กว้างกว่า) */
+    border: 3px solid #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    overflow: hidden;
+    position: relative;
+}
+
+#mapid {
+    height: 100%;
+    width: 100%;
+}
+
+/* --- ฝั่งขวา: ตาราง --- */
+.table-section {
+    flex: 1;
+    /* ให้พื้นที่ 1 ส่วน */
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    /* เรียงแนวตั้ง (หัวข้อ -> ตาราง) */
+    overflow: hidden;
+}
+
+.table-header {
+    background-color: #34495e;
+    color: white;
+    padding: 15px;
+    text-align: center;
+}
+
+.table-header h2 {
+    margin: 0;
+    font-size: 18px;
+}
+
+/* --- ตัวตาราง --- */
+.table-scroll-container {
+    flex-grow: 1;
+    /* ยืดให้เต็มพื้นที่ที่เหลือ */
+    overflow-y: auto;
+    /* ให้เลื่อนขึ้นลงได้ถ้าข้อมูลเยอะ */
+    padding: 0;
+}
+
+table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+}
+
+thead th {
+    background-color: #ecf0f1;
+    color: #2c3e50;
+    padding: 12px;
+    position: sticky;
+    /* ตรึงหัวตารางไว้บนสุดเวลาเลื่อน */
+    top: 0;
+    z-index: 1;
+    font-weight: 600;
+}
+
+tbody td {
+    padding: 10px;
+    border-bottom: 1px solid #eee;
+    text-align: center;
+}
+
+/* Hover effect: เอาเมาส์ชี้แล้วเปลี่ยนสี */
+tbody tr:hover {
+    background-color: #f8f9fa;
+}
+
+/* --- สีของสถานะ (ใช้ใน JS) --- */
+.status-success {
+    color: #27ae60;
+    /* สีเขียว */
+    font-weight: bold;
+    background-color: #eafaf1;
+    border-radius: 4px;
+    padding: 2px 6px;
+}
+
+.status-fail {
+    color: #c0392b;
+    /* สีแดง */
+    font-weight: bold;
+    background-color: #fdedec;
+    border-radius: 4px;
+    padding: 2px 6px;
+}

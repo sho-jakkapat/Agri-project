@@ -1,0 +1,41 @@
+{
+    "id": 1,
+    "src": "rtk",
+    "dst": "app",
+    "type": "rtk_report",
+    "utc_date": "2025/11/26",
+    "utc_time": "08:46:00",
+    "payload": {
+        "gnss": {
+            "lat_deg": 15.1234567,
+            "lon_deg": 100.1234567,
+            "h_m": 123.45,
+            "spd_kmh": 4.8,
+            "head_deg": 87.3,
+            "sat_used": 24,
+            "fix": 0
+        },
+        "imu": {
+            "acc_g": {
+                "x": 0.01,
+                "y": 0.00,
+                "z": 0.99
+            },
+            "gyro_dps": {
+                "x": 0.3,
+                "y": 0.1,
+                "z": -0.2
+            },
+            "mag_uT": {
+                "x": 4.2,
+                "y": 5.3,
+                "z": -37.8
+            },
+            "tilt_deg": {
+                "roll": -2.1,
+                "pitch": 1.5,
+                "yaw": 88.2
+            }
+        }
+    }
+}

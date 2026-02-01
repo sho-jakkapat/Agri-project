@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rover Tracking Dashboard</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='leaflet.css') }}">
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles.css') }}">
+</head>
+
+<body>
+
+    <h1>Rover Operation Dashboard</h1>
+
+    <div class="main-container">
+        <div class="map-section">
+            <div id="mapid"></div>
+        </div>
+
+        <div class="table-section">
+            <div class="table-header">
+                <h2>Real-time Logs</h2>
+            </div>
+
+            <div class="table-scroll-container">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>Time</th>
+                            <th>Dist. (m)</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="logTableBody">
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='leaflet.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+
+</body>
+
+</html>
