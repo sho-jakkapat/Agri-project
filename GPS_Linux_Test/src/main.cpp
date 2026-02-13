@@ -3,60 +3,71 @@
 #include <ArduinoJson.h>
 #include <WiFi.h>
 #include <HTTPClient.h>
+#include <WiFiClientSecure.h> // 👈 1. เพิ่ม Library นี้สำหรับ HTTPS
 #include <cmath>
 
 // --- ⚠️ แก้ชื่อ WiFi ตรงนี้ครับ ⚠️ ---
-const char* ssid = "";      // ใส่ชื่อ WiFi
-const char* password = "";  // ใส่รหัสผ่าน
+const char* ssid = "Shox";      
+const char* password = "Show2547"; 
 // ----------------------------------
 
-// IP เครื่องพี่ (Server)
-const String serverUrl = "http://172.20.10.4:5000/api/log";
+// 👈 2. แก้ URL เป็นโดเมน Cloudflare ของพี่ (ต้องเป็น https)
+const String serverUrl = "https://api.shojakkapat.com/api/log";
 
 #define LED_PIN 2
 double prevLat = 0.0, prevLon = 0.0;
 double accumulatedDistance = 0.0;
 bool firstFix = true;
 
-// สูตรคำนวณระยะทาง (Haversine Formula) - แก้ไขให้ถูกต้องแล้วครับ
+// สูตรคำนวณระยะทาง (Haversine Formula) - ของเดิมพี่
 double calculateDistance(double lat1, double lon1, double lat2, double lon2) {
-    double R = 6371000; // รัศมีโลก (เมตร)
+    double R = 6371000; 
     double dLat = (lat2 - lat1) * M_PI / 180.0;
     double dLon = (lon2 - lon1) * M_PI / 180.0;
     double a = sin(dLat / 2) * sin(dLat / 2) +
                cos(lat1 * M_PI / 180.0) * cos(lat2 * M_PI / 180.0) *
                sin(dLon / 2) * sin(dLon / 2);
-    double c = 2 * atan2(sqrt(a), sqrt(1 - a)); // เพิ่มบรรทัดนี้กลับมาแล้วครับ
+    double c = 2 * atan2(sqrt(a), sqrt(1 - a)); 
     return R * c;
 }
 
 void sendDataToServer(double lat, double lon, double dist, String action) {
     if(WiFi.status() == WL_CONNECTED){
+        
+        // 👈 3. สร้าง Client แบบ Secure (สำคัญมาก!)
+        WiFiClientSecure client;
+        client.setInsecure(); // สั่งให้ไม่ต้องตรวจใบ Certificate (เพื่อให้ผ่าน Cloudflare ได้ง่ายๆ)
+
         HTTPClient http;
-        http.begin(serverUrl);
-        http.addHeader("Content-Type", "application/json");
+        
+        // ใช้ begin แบบใส่ client เข้าไปด้วย
+        if (http.begin(client, serverUrl)) { 
+            http.addHeader("Content-Type", "application/json");
 
-        // --- แก้ชื่อตัวแปรให้ตรงกับ Python เป๊ะๆ ---
-        String jsonPayload = "{";
-        jsonPayload += "\"latitude\":" + String(lat, 6) + ",";       // ต้องใช้คำเต็ม
-        jsonPayload += "\"longitude\":" + String(lon, 6) + ",";      // ต้องใช้คำเต็ม
-        jsonPayload += "\"gps_fix_status\": 1,";                     // อันนี้ต้องใส่ (Python บังคับ)
-        jsonPayload += "\"distance\":" + String(dist, 2) + ",";
-        jsonPayload += "\"action_status\":\"" + action + "\"";       // แก้ action -> action_status
-        jsonPayload += "}";
-        // ----------------------------------------
+            // สร้าง JSON ให้ตรงกับ app.py (ของเดิมพี่ถูกต้องแล้ว)
+            String jsonPayload = "{";
+            jsonPayload += "\"latitude\":" + String(lat, 6) + ",";
+            jsonPayload += "\"longitude\":" + String(lon, 6) + ",";
+            jsonPayload += "\"gps_fix_status\": 1,";
+            jsonPayload += "\"distance\":" + String(dist, 2) + ",";
+            jsonPayload += "\"action_status\":\"" + action + "\"";
+            jsonPayload += "}";
 
-        Serial.print("Sending to Server... ");
-        int httpResponseCode = http.POST(jsonPayload);
+            Serial.print("Sending to Cloudflare... ");
+            int httpResponseCode = http.POST(jsonPayload);
 
-        if(httpResponseCode > 0){
-            Serial.println("OK! Code: " + String(httpResponseCode));
-            // ถ้าอยากรู้ว่า Server ตอบว่าอะไร (เผื่อ Error อีก) ให้เปิดบรรทัดล่างนี้ครับ
-            // Serial.println(http.getString()); 
+            if(httpResponseCode > 0){
+                Serial.println("OK! Code: " + String(httpResponseCode));
+                // Serial.println(http.getString()); // เปิดบรรทัดนี้ถ้าอยากเห็นข้อความตอบกลับ
+            } else {
+                Serial.print("Error: ");
+                // ปริ้นท์ Error แบบละเอียดออกมาดู
+                Serial.println(http.errorToString(httpResponseCode).c_str());
+            }
+            http.end();
         } else {
-            Serial.println("Error: " + String(httpResponseCode));
+            Serial.println("Unable to connect to Server URL");
         }
-        http.end();
     } else {
         Serial.println("WiFi Disconnected!");
     }
@@ -68,7 +79,7 @@ void setup() {
     digitalWrite(LED_PIN, LOW); 
 
     delay(1000);
-    Serial.println("\n--- ESP32 Online Mode ---");
+    Serial.println("\n--- ESP32 Cloudflare Mode ---");
     
     // เชื่อมต่อ WiFi
     Serial.print("Connecting to WiFi");
@@ -81,7 +92,7 @@ void setup() {
     Serial.print("My IP: ");
     Serial.println(WiFi.localIP());
     
-    Serial.println("Ready! Type JSON to simulate GPS.");
+    Serial.println("Ready! Type JSON to simulate GPS (e.g., {\"lat\":13.7, \"lon\":100.5})");
 }
 
 void loop() {
@@ -92,7 +103,7 @@ void loop() {
         if (input.length() > 0) {
             Serial.print("CHECK INPUT: "); Serial.println(input);
 
-            JsonDocument doc;
+            JsonDocument doc; // ใช้ JsonDocument แบบใหม่ (ArduinoJson v7) หรือ StaticJsonDocument ก็ได้
             DeserializationError error = deserializeJson(doc, input);
 
             if (!error) {
@@ -105,7 +116,6 @@ void loop() {
                     prevLon = currentLon;
                     firstFix = false;
                     Serial.println(">>> First Fix Set");
-                    // ส่งจุดเริ่มต้นเข้า Server
                     sendDataToServer(currentLat, currentLon, 0.0, "START");
                 } else {
                     double dist = calculateDistance(prevLat, prevLon, currentLat, currentLon);
@@ -123,10 +133,9 @@ void loop() {
                             digitalWrite(LED_PIN, HIGH); delay(100);
                             digitalWrite(LED_PIN, LOW);  delay(100);
                         }
-                        accumulatedDistance = 0; // Reset
+                        accumulatedDistance = 0; 
                     }
                     
-                    // ส่งข้อมูลขึ้น Server เครื่องพี่
                     sendDataToServer(currentLat, currentLon, accumulatedDistance, actionStatus);
                 }
             } else {
