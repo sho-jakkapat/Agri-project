@@ -40,6 +40,14 @@ def get_logs():
 def add_log():
     try:
         data = request.get_json()
+        
+        # ==========================================
+        # 🔥 ด่านตรวจ API Key: ถ้าไม่มีรหัส หรือรหัสผิด เตะทิ้งทันที!
+        # ==========================================
+        if data.get('api_key') != 'Shiro_Secret_999':
+            return jsonify({"error": "Unauthorized"}), 401
+        # ==========================================
+
         new_log = GpsLog(
             latitude=data.get('latitude'),
             longitude=data.get('longitude'),

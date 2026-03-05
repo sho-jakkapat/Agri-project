@@ -5,7 +5,7 @@ const map = L.map('mapid').setView([0, 0], 19);
 
 // 2. ใช้ OpenStreetMap (OSM)
 L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    maxZoom: 22,
+    maxZoom: 25,
     maxNativeZoom: 19,
     attribution: '© OpenStreetMap contributors'
 }).addTo(map);
@@ -68,6 +68,7 @@ async function fetchAndPlotLogs() {
         if (!logs || logs.length === 0) return;
 
         const latLngs = [];
+        const dropLogs = []; // 🔥 สร้างอาร์เรย์มาเก็บจุดที่ปล่อยปุ๋ยไว้ก่อน
 
         logs.forEach(log => {
             const lat = parseFloat(log.latitude);
@@ -76,23 +77,35 @@ async function fetchAndPlotLogs() {
             
             latLngs.push([lat, lon]);
 
+            // ดึงสถานะมาเช็ค
             const status = (log.action_status || "").toString().trim();
-            const statusClass = (status === 'Success') ? 'status-success' : 'status-fail';
+            
+            // 1. จัดการตาราง (เปลี่ยนมาเช็คคำว่า 'Dropped' และ 'Moving')
+            if (status === 'Dropped' || status === 'Moving') {
+                const statusClass = (status === 'Dropped') ? 'status-success' : 'status-fail';
+                const row = document.createElement('tr');
+                
+                // แปลงทศนิยมระยะทางให้แสดงแค่ 2 ตำแหน่งจะได้ดูสวยๆ บนตาราง
+                const displayDistance = parseFloat(log.distance).toFixed(2);
+                
+                row.innerHTML = `
+                    <td>${log.timestamp}</td>
+                    <td>${displayDistance}</td>
+                    <td class="${statusClass}">${status}</td>
+                `;
+                tableBody.appendChild(row);
+            }
 
-            const row = document.createElement('tr');
-            row.innerHTML = `
-                <td>${log.timestamp}</td>
-                <td>${log.distance}</td>
-                <td class="${statusClass}">${status}</td>
-            `;
-            tableBody.appendChild(row);
+            // 2. เก็บ log ที่เป็น Dropped เอาไว้วาดทีหลังสุด
+            if (status === 'Dropped') {
+                dropLogs.push(log);
+            }
         });
-
         if (latLngs.length > 0) {
             const pathPoints = [...latLngs].reverse();
 
             // ==========================================
-            // สร้างเส้นทาง (ตรงกลาง + ซ้าย + ขวา)
+            // วาดเส้นทาง (ตรงกลาง + ซ้าย + ขวา)
             // ==========================================
             let leftPoints = [];
             let rightPoints = [];
@@ -101,30 +114,45 @@ async function fetchAndPlotLogs() {
             for (let i = 0; i < pathPoints.length; i++) {
                 let p1 = pathPoints[i];
                 let p2 = pathPoints[i+1];
+                if (p2) currentHeading = getBearing(p1[0], p1[1], p2[0], p2[1]);
 
-                // หาว่าตอนนี้กำลังหันหน้าไปทิศไหน
-                if (p2) {
-                    currentHeading = getBearing(p1[0], p1[1], p2[0], p2[1]);
-                }
-
-                // หามุมตั้งฉาก ซ้าย (-90) และ ขวา (+90)
                 let leftHeading = (currentHeading - 90 + 360) % 360;
                 let rightHeading = (currentHeading + 90) % 360;
 
-                // คำนวณพิกัดซ้ายขวาตามระยะ WORK_WIDTH
                 leftPoints.push(getOffsetPoint(p1[0], p1[1], leftHeading, WORK_WIDTH));
                 rightPoints.push(getOffsetPoint(p1[0], p1[1], rightHeading, WORK_WIDTH));
             }
 
-            // 1. วาดเส้นขนาน ซ้าย-ขวา (เป็นเส้นประสีฟ้าบางๆ)
+            // วาดเส้นลงแผนที่
             L.polyline(leftPoints, { color: '#3498db', weight: 2, dashArray: '10, 10', opacity: 0.6 }).addTo(currentLayers);
             L.polyline(rightPoints, { color: '#3498db', weight: 2, dashArray: '10, 10', opacity: 0.6 }).addTo(currentLayers);
-
-            // 2. วาดเส้นหลักตรงกลาง (เส้นทึบสีแดง)
             L.polyline(pathPoints, { color: '#ff0000', weight: 4, opacity: 0.9 }).addTo(currentLayers);
 
             // ==========================================
+            // 🔥 วาดจุด Marker วงกลมสีเขียว (วาดหลังเส้น จะได้เด้งขึ้นมาข้างบน)
+            // ==========================================
+            dropLogs.forEach(log => {
+                L.circleMarker([parseFloat(log.latitude), parseFloat(log.longitude)], {
+                    color: '#27ae60',
+                    fillColor: '#2ecc71',
+                    fillOpacity: 1,
+                    radius: 8,     // ปรับให้ใหญ่ขึ้นนิดนึง จะได้เห็นชัดๆ
+                    weight: 2
+                })
+                .bindPopup(`
+                    <div style="text-align: center; font-family: 'Segoe UI', Tahoma, sans-serif;">
+                        <b style="color: #27ae60; font-size: 14px;">🌱 ปล่อยปุ๋ยสำเร็จ</b><br>
+                        <hr style="margin: 5px 0; border: 0; border-top: 1px solid #eee;">
+                        <b>เวลา:</b> ${log.timestamp}<br>
+                        <b>ระยะที่ตั้งไว้:</b> ${log.distance} เมตร
+                    </div>
+                `)
+                .addTo(currentLayers);
+            });
 
+            // ==========================================
+            // วาดลูกศรหน้ารถ
+            // ==========================================
             const latestPoint = pathPoints[pathPoints.length - 1];
             const prevPoint = pathPoints[pathPoints.length - 2];
 
