@@ -68,7 +68,11 @@ async function fetchAndPlotLogs() {
         if (!logs || logs.length === 0) return;
 
         const latLngs = [];
-        const dropLogs = []; // 🔥 สร้างอาร์เรย์มาเก็บจุดที่ปล่อยปุ๋ยไว้ก่อน
+        const dropLogs = []; 
+        
+        // ดึงสถานะของ Checkbox ว่าให้โชว์เฉพาะ Dropped ไหม
+        const filterCheckbox = document.getElementById('filterDropOnly');
+        const showOnlyDropped = filterCheckbox ? filterCheckbox.checked : false;
 
         logs.forEach(log => {
             const lat = parseFloat(log.latitude);
@@ -77,30 +81,37 @@ async function fetchAndPlotLogs() {
             
             latLngs.push([lat, lon]);
 
-            // ดึงสถานะมาเช็ค
             const status = (log.action_status || "").toString().trim();
             
-            // 1. จัดการตาราง (เปลี่ยนมาเช็คคำว่า 'Dropped' และ 'Moving')
+            // แปลงหน่วยจากเมตรเป็นเซนติเมตร (คูณ 100)
+            const distanceCm = (parseFloat(log.distance) * 100).toFixed(2);
+            
+            // 1. จัดการตาราง (เพิ่มเงื่อนไขการกรอง)
             if (status === 'Dropped' || status === 'Moving') {
-                const statusClass = (status === 'Dropped') ? 'status-success' : 'status-fail';
-                const row = document.createElement('tr');
-                
-                // แปลงทศนิยมระยะทางให้แสดงแค่ 2 ตำแหน่งจะได้ดูสวยๆ บนตาราง
-                const displayDistance = parseFloat(log.distance).toFixed(2);
-                
-                row.innerHTML = `
-                    <td>${log.timestamp}</td>
-                    <td>${displayDistance}</td>
-                    <td class="${statusClass}">${status}</td>
-                `;
-                tableBody.appendChild(row);
+                // ถ้าติ๊ก Checkbox แล้วสถานะไม่ใช่ Dropped ให้ข้ามการวาดลงตารางไปเลย
+                if (showOnlyDropped && status !== 'Dropped') {
+                    // ไม่ทำอะไร (ข้าม)
+                } else {
+                    const statusClass = (status === 'Dropped') ? 'status-success' : 'status-fail';
+                    const row = document.createElement('tr');
+                    
+                    row.innerHTML = `
+                        <td>${log.timestamp}</td>
+                        <td>${distanceCm}</td>
+                        <td class="${statusClass}">${status}</td>
+                    `;
+                    tableBody.appendChild(row);
+                }
             }
 
             // 2. เก็บ log ที่เป็น Dropped เอาไว้วาดทีหลังสุด
             if (status === 'Dropped') {
+                // เอาระยะที่แปลงเป็นเซนแล้วไปแปะไว้ใน object ด้วย จะได้ดึงไปโชว์ใน popup ง่ายๆ
+                log.distanceCm = distanceCm; 
                 dropLogs.push(log);
             }
         });
+
         if (latLngs.length > 0) {
             const pathPoints = [...latLngs].reverse();
 
@@ -123,20 +134,19 @@ async function fetchAndPlotLogs() {
                 rightPoints.push(getOffsetPoint(p1[0], p1[1], rightHeading, WORK_WIDTH));
             }
 
-            // วาดเส้นลงแผนที่
             L.polyline(leftPoints, { color: '#3498db', weight: 2, dashArray: '10, 10', opacity: 0.6 }).addTo(currentLayers);
             L.polyline(rightPoints, { color: '#3498db', weight: 2, dashArray: '10, 10', opacity: 0.6 }).addTo(currentLayers);
             L.polyline(pathPoints, { color: '#ff0000', weight: 4, opacity: 0.9 }).addTo(currentLayers);
 
             // ==========================================
-            // 🔥 วาดจุด Marker วงกลมสีเขียว (วาดหลังเส้น จะได้เด้งขึ้นมาข้างบน)
+            // วาดจุด Marker วงกลมสีเขียว
             // ==========================================
             dropLogs.forEach(log => {
                 L.circleMarker([parseFloat(log.latitude), parseFloat(log.longitude)], {
                     color: '#27ae60',
                     fillColor: '#2ecc71',
                     fillOpacity: 1,
-                    radius: 8,     // ปรับให้ใหญ่ขึ้นนิดนึง จะได้เห็นชัดๆ
+                    radius: 8,
                     weight: 2
                 })
                 .bindPopup(`
@@ -144,7 +154,7 @@ async function fetchAndPlotLogs() {
                         <b style="color: #27ae60; font-size: 14px;">🌱 ปล่อยปุ๋ยสำเร็จ</b><br>
                         <hr style="margin: 5px 0; border: 0; border-top: 1px solid #eee;">
                         <b>เวลา:</b> ${log.timestamp}<br>
-                        <b>ระยะที่ตั้งไว้:</b> ${log.distance} เมตร
+                        <b>ระยะที่ได้:</b> ${log.distanceCm} ซม.
                     </div>
                 `)
                 .addTo(currentLayers);
